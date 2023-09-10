@@ -1,0 +1,112 @@
+version: '3'
+
+services:
+  mariadb:
+    image: linuxserver/mariadb:10.11.5
+    container_name: mariadb
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Berlin
+      - PGID=1000 
+      - MYSQL_USER=${GITEA_DB_USER} 
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_PASSWORD=${GITEA_DB_PASSWORD}
+      - MYSQL_DATABASE=${GITEA_DB_NAME} 
+    volumes:
+      - /host/path/to/config:/config # Contains the db itself and all assorted settings.
+    ports:
+      - 3306:3306/tcp 
+  
+  gitea:
+    image: gitea/gitea:1.20.3-rootless
+    environment:
+      - GITEA__database__DB_TYPE=mysql
+      - GITEA__database__HOST=mariadb:3306
+      - GITEA__database__NAME=${GITEA_DB_NAME}
+      - GITEA__database__USER=${GITEA_DB_USER}
+      - GITEA__database__PASSWD=${GITEA_DB_PASSWORD}
+    restart: always
+    volumes:
+      - gitea-data:/var/lib/gitea
+      - gitea-config:/etc/gitea
+    ports:
+      - "3000:3000"
+      - "2222:2222"
+    depends_on:
+      - mariadb
+  
+  frontend:
+    build:
+      context: .
+      dockerfile: Frontend/Dockerfile
+      args:
+        NAME: ${APP_NAME}
+        REPO_NAME: ${APP_REPO_NAME}
+        REPO_URL: ${APP_REPO_URL}
+        REMOTE_URL: ${APP_REMOTE_URL}
+    volumes:
+      - app-data:/app
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+      - gitea
+
+  backend:
+    build:
+      context: .
+      dockerfile: Backend/Dockerfile
+      args:
+        NAME: ${API_NAME}
+        REPO_NAME: ${API_REPO_NAME}
+        REPO_URL: ${API_REPO_URL}
+        REMOTE_URL: ${API_REMOTE_URL}
+    volumes:
+      - api-data:/api
+    ports:
+      - "9000:9000"
+    depends_on:
+      - postgres
+      - gitea
+  
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+  
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    restart: unless-stopped
+    environment:
+      API_REPO_NAME: ${API_REPO_NAME}
+      APP_REPO_NAME: ${APP_REPO_NAME}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./Nginx/certs:/etc/nginx/certs
+      
+
+volumes:
+  postgres-data:
+  git-repo-data:
+  api-data:
+  app-data:
+  gitea-data:
+    driver: local
+  gitea-config:
+    driver: local
+
+# networks:
+#   default:
+#     name: NHCICD
+#     external: true
+
