@@ -16,6 +16,8 @@ services:
       - /host/path/to/config:/config # Contains the db itself and all assorted settings.
     ports:
       - 3306:3306/tcp 
+    networks:
+      - symfony
   
   gitea:
     image: gitea/gitea:1.20.3-rootless
@@ -25,7 +27,7 @@ services:
       - GITEA__database__NAME=${GITEA_DB_NAME}
       - GITEA__database__USER=${GITEA_DB_USER}
       - GITEA__database__PASSWD=${GITEA_DB_PASSWORD}
-    restart: always
+    restart: unless-stopped
     volumes:
       - gitea-data:/var/lib/gitea
       - gitea-config:/etc/gitea
@@ -34,6 +36,8 @@ services:
       - "2222:2222"
     depends_on:
       - mariadb
+    networks:
+      - symfony
   
   frontend:
     build:
@@ -44,6 +48,8 @@ services:
         REPO_NAME: ${APP_REPO_NAME}
         REPO_URL: ${APP_REPO_URL}
         REMOTE_URL: ${APP_REMOTE_URL}
+    restart: unless-stopped
+    container_name: ${GLOBAL_NAME}-app
     volumes:
       - app-data:/app
     ports:
@@ -51,6 +57,8 @@ services:
     depends_on:
       - postgres
       - gitea
+    networks:
+      - symfony
 
   backend:
     build:
@@ -61,6 +69,8 @@ services:
         REPO_NAME: ${API_REPO_NAME}
         REPO_URL: ${API_REPO_URL}
         REMOTE_URL: ${API_REMOTE_URL}
+    restart: unless-stopped
+    container_name: ${GLOBAL_NAME}-api
     volumes:
       - api-data:/api
     ports:
@@ -68,6 +78,8 @@ services:
     depends_on:
       - postgres
       - gitea
+    networks:
+      - symfony
   
   postgres:
     image: postgres
@@ -75,14 +87,17 @@ services:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+    restart: unless-stopped
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - symfony
   
   nginx:
     image: nginx:latest
-    container_name: nginx
+    container_name: ${GLOBAL_NAME}-nginx
     restart: unless-stopped
     environment:
       API_REPO_NAME: ${API_REPO_NAME}
@@ -93,8 +108,61 @@ services:
     volumes:
       - ./Nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./Nginx/certs:/etc/nginx/certs
-      
+    networks:
+      - symfony
 
+  elasticsearch:
+    image: ${GLOBAL_NAME}-elasticsearch
+    build:
+      args:
+        ELK_VERSION: ${ELK_VERSION}
+      dockerfile: ./Elasticsearch/Dockerfile
+    container_name: ${GLOBAL_NAME}-elasticsearch
+    environment:
+      ES_JAVA_OPTS: "-Xmx1024m -Xms1024m"
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+      # Use single node discovery in order to disable production mode and avoid bootstrap checks
+      # see https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
+      discovery.type: single-node
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - ./Elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+      - ./Elasticsearch/var/elasticsearch-data:/usr/share/elasticsearch/data:delegated
+    networks:
+      - symfony
+
+  kibana:
+    image: ${GLOBAL_NAME}-kibana
+    platform: linux/x86_64
+    build:
+      args:
+        ELK_VERSION: ${ELK_VERSION}
+      dockerfile: ./Kibana/Dockerfile
+    container_name: ${GLOBAL_NAME}-kibana
+    ports:
+      - "5601:5601"
+    volumes:
+      - ./Kibana/conf/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+    depends_on:
+      - elasticsearch
+    networks:
+      - symfony
+  
+  rabbitmq:
+    build:
+      context: .
+      dockerfile: Backend/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${MQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${MQ_PASSWORD}
 volumes:
   postgres-data:
   git-repo-data:
@@ -104,9 +172,8 @@ volumes:
     driver: local
   gitea-config:
     driver: local
+  rabbitmq_data:
 
-# networks:
-#   default:
-#     name: NHCICD
-#     external: true
-
+networks:
+  symfony:
+    name: symfony

@@ -3,17 +3,47 @@ FROM php:8.2-fpm
 ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
 
 # Installez les extensions nécessaires
-RUN apt-get update && apt-get install -y \
-    libpq-dev \
-    git \
-    unzip \
-    && docker-php-ext-install pdo pdo_pgsql
-
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+      procps \
+      nano \
+      git \
+      unzip \
+      libicu-dev \
+      zlib1g-dev \
+      libxml2 \
+      libxml2-dev \
+      libreadline-dev \
+      supervisor \
+      cron \
+      sudo \
+      libzip-dev \
+      wget \
+      librabbitmq-dev \
+    && pecl install amqp \
+    && docker-php-ext-configure pdo_mysql --with-pdo-mysql=mysqlnd \
+    && docker-php-ext-configure intl \
+    && yes '' | pecl install -o -f redis && docker-php-ext-enable redis \
+    && docker-php-ext-install \
+      pdo_mysql \
+      sockets \
+      intl \
+      opcache \
+      zip \
+    && docker-php-ext-enable amqp \
+    && rm -rf /tmp/* \
+    && rm -rf /var/list/apt/* \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+ 
 RUN chmod +x /usr/local/bin/install-php-extensions && \
     install-php-extensions gd xdebug
 
 # Installation de Composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+RUN chmod +x /usr/bin/composer
+ENV COMPOSER_ALLOW_SUPERUSER 1
+
+# Create RSA Keys
 RUN ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N ""
 # DEFNITION DES ARGUMENTS
 ARG NAME
@@ -34,4 +64,5 @@ COPY ./EndpointScript/init.sh /api/init.sh
 
 RUN chmod +x /api/deploy.sh
 RUN chmod +x /api/init.sh
+
 CMD ["php-fpm"]
