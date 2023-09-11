@@ -25,6 +25,7 @@ if [ ! -d "$TARGET_DIR" ] || [ ! -d "$TARGET_DIR/.git" ]; then
         exit 1
     fi
 fi
+fit status
 
 cd $TARGET_DIR
 
