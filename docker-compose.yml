@@ -12,8 +12,16 @@ services:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_PASSWORD=${GITEA_DB_PASSWORD}
       - MYSQL_DATABASE=${GITEA_DB_NAME} 
+    deploy:
+        resources:
+            limits:
+              cpus: '0.60'
+              memory: 512M
+            reservations:
+              cpus: '0.30'
+              memory: 128M
     volumes:
-      - /host/path/to/config:/config # Contains the db itself and all assorted settings.
+      - mariadb-data:/config # Contains the db itself and all assorted settings.
     ports:
       - 3306:3306/tcp 
     networks:
@@ -28,6 +36,14 @@ services:
       - GITEA__database__USER=${GITEA_DB_USER}
       - GITEA__database__PASSWD=${GITEA_DB_PASSWORD}
     restart: unless-stopped
+    deploy:
+        resources:
+            limits:
+              cpus: '0.60'
+              memory: 512M
+            reservations:
+              cpus: '0.30'
+              memory: 128M
     volumes:
       - gitea-data:/var/lib/gitea
       - gitea-config:/etc/gitea
@@ -50,6 +66,14 @@ services:
         REMOTE_URL: ${APP_REMOTE_URL}
     restart: unless-stopped
     container_name: ${GLOBAL_NAME}-app
+    deploy:
+        resources:
+            limits:
+              cpus: '0.60'
+              memory: 512M
+            reservations:
+              cpus: '0.30'
+              memory: 128M
     volumes:
       - app-data:/app
     ports:
@@ -71,6 +95,14 @@ services:
         REMOTE_URL: ${API_REMOTE_URL}
     restart: unless-stopped
     container_name: ${GLOBAL_NAME}-api
+    deploy:
+        resources:
+            limits:
+              cpus: '0.60'
+              memory: 512M
+            reservations:
+              cpus: '0.30'
+              memory: 128M
     volumes:
       - api-data:/api
     ports:
@@ -88,6 +120,14 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     restart: unless-stopped
+    deploy:
+        resources:
+            limits:
+              cpus: '0.60'
+              memory: 512M
+            reservations:
+              cpus: '0.30'
+              memory: 128M
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
@@ -105,56 +145,88 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    deploy:
+        resources:
+            limits:
+              cpus: '0.60'
+              memory: 512M
+            reservations:
+              cpus: '0.30'
+              memory: 128M
     volumes:
-      - ./Nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./Nginx/conf/nginx.conf:/etc/nginx/nginx.conf
       - ./Nginx/certs:/etc/nginx/certs
     networks:
       - symfony
 
-  elasticsearch:
-    image: ${GLOBAL_NAME}-elasticsearch
-    build:
-      args:
-        ELK_VERSION: ${ELK_VERSION}
-      dockerfile: ./Elasticsearch/Dockerfile
-    container_name: ${GLOBAL_NAME}-elasticsearch
-    environment:
-      ES_JAVA_OPTS: "-Xmx1024m -Xms1024m"
-      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
-      # Use single node discovery in order to disable production mode and avoid bootstrap checks
-      # see https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
-      discovery.type: single-node
-    ports:
-      - "9200:9200"
-      - "9300:9300"
-    volumes:
-      - ./Elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
-      - ./Elasticsearch/var/elasticsearch-data:/usr/share/elasticsearch/data:delegated
-    networks:
-      - symfony
+  # elasticsearch:
+  #   image: ${GLOBAL_NAME}-elasticsearch
+  #   build:
+  #     args:
+  #       ELK_VERSION: ${ELK_VERSION}
+  #     dockerfile: ./Elasticsearch/Dockerfile
+  #   container_name: ${GLOBAL_NAME}-elasticsearch
+  #   environment:
+  #     ES_JAVA_OPTS: "-Xmx1024m -Xms1024m"
+  #     ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+  #     # Use single node discovery in order to disable production mode and avoid bootstrap checks
+  #     # see https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
+  #     discovery.type: single-node
+  #   deploy:
+  #       resources:
+  #           limits:
+  #             cpus: '0.60'
+  #             memory: 512M
+  #           reservations:
+  #             cpus: '0.30'
+  #             memory: 128M
+  #   ports:
+  #     - "9200:9200"
+  #     - "9300:9300"
+  #   volumes:
+  #     - ./Elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+  #     - ./Elasticsearch/var/elasticsearch-data:/usr/share/elasticsearch/data:delegated
+  #   networks:
+  #     - symfony
 
-  kibana:
-    image: ${GLOBAL_NAME}-kibana
-    platform: linux/x86_64
-    build:
-      args:
-        ELK_VERSION: ${ELK_VERSION}
-      dockerfile: ./Kibana/Dockerfile
-    container_name: ${GLOBAL_NAME}-kibana
-    ports:
-      - "5601:5601"
-    volumes:
-      - ./Kibana/conf/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
-    depends_on:
-      - elasticsearch
-    networks:
-      - symfony
+  # kibana:
+  #   image: ${GLOBAL_NAME}-kibana
+  #   platform: linux/x86_64
+  #   build:
+  #     args:
+  #       ELK_VERSION: ${ELK_VERSION}
+  #     dockerfile: ./Kibana/Dockerfile
+  #   container_name: ${GLOBAL_NAME}-kibana
+  #   deploy:
+  #       resources:
+  #           limits:
+  #             cpus: '0.60'
+  #             memory: 512M
+  #           reservations:
+  #             cpus: '0.30'
+  #             memory: 128M
+  #   ports:
+  #     - "5601:5601"
+  #   volumes:
+  #     - ./Kibana/conf/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+  #   depends_on:
+  #     - elasticsearch
+  #   networks:
+  #     - symfony
   
   rabbitmq:
     build:
       context: .
       dockerfile: Backend/Dockerfile
     restart: unless-stopped
+    deploy:
+        resources:
+            limits:
+              cpus: '0.60'
+              memory: 512M
+            reservations:
+              cpus: '0.30'
+              memory: 128M
     ports:
       - "15672:15672"
       - "5672:5672"
@@ -173,6 +245,8 @@ volumes:
   gitea-config:
     driver: local
   rabbitmq_data:
+  mariadb-data:
+    driver: local
 
 networks:
   symfony:

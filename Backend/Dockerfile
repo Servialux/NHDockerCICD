@@ -61,8 +61,14 @@ WORKDIR /api/$REPO_NAME
 
 COPY ./EndpointScript/deploy.sh /api/deploy.sh
 COPY ./EndpointScript/init.sh /api/init.sh
+COPY ./EndpointScript/deploy.php /api/deploy.php
+
+RUN chown www-data:www-data /api/deploy.php
+RUN chmod +x /api/deploy.php
 
 RUN chmod +x /api/deploy.sh
 RUN chmod +x /api/init.sh
+
+
 
 CMD ["php-fpm"]
