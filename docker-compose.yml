@@ -155,7 +155,7 @@ services:
               cpus: '0.30'
               memory: 128M
     volumes:
-      - ./Nginx/conf/nginx.conf:/etc/nginx/nginx.conf
+      - ./Nginx/conf/default.conf:/etc/nginx/conf.d/default.conf
       - ./Nginx/certs:/etc/nginx/certs
       - ./Backend/src:/var/www/html
     networks:
