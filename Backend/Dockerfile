@@ -1,9 +1,11 @@
 FROM php:8.2-fpm
 
-ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+# ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
 
 # Installez les extensions nécessaires
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+      apt-utils \
+      && apt-get install -y \
       procps \
       nano \
       git \
@@ -18,11 +20,14 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
       sudo \
       libzip-dev \
       wget \
+      libpq-dev \
       librabbitmq-dev \
     && pecl install amqp \
     && docker-php-ext-configure pdo_mysql --with-pdo-mysql=mysqlnd \
     && docker-php-ext-configure intl \
     && yes '' | pecl install -o -f redis && docker-php-ext-enable redis \
+    && docker-php-ext-install -j$(nproc) pgsql \
+    && docker-php-ext-install -j$(nproc) pdo_pgsql \
     && docker-php-ext-install \
       pdo_mysql \
       sockets \
@@ -35,8 +40,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
  
-RUN chmod +x /usr/local/bin/install-php-extensions && \
-    install-php-extensions gd xdebug
+# RUN chmod +x /usr/local/bin/install-php-extensions && \
+#     install-php-extensions gd xdebug
 
 # Installation de Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -57,18 +62,15 @@ ENV REPO_NAME=$REPO_NAME
 ENV REPO_URL=$REPO_URL
 ENV REMOTE_URL=$REMOTE_URL
 
-WORKDIR /api/$REPO_NAME
+COPY ./EndpointScript/deploy.sh /var/www/html/deploy.sh
+COPY ./EndpointScript/init.sh /var/www/html/init.sh
+COPY ./EndpointScript/deploy.php /var/www/html/deploy.php
 
-COPY ./EndpointScript/deploy.sh /api/deploy.sh
-COPY ./EndpointScript/init.sh /api/init.sh
-COPY ./EndpointScript/deploy.php /api/deploy.php
+RUN chown www-data:www-data /var/www/html/deploy.php
+RUN chmod +x /var/www/html/deploy.php
 
-RUN chown www-data:www-data /api/deploy.php
-RUN chmod +x /api/deploy.php
+RUN chmod +x /var/www/html/deploy.sh
+RUN chmod +x /var/www/html/init.sh
 
-RUN chmod +x /api/deploy.sh
-RUN chmod +x /api/init.sh
-
-
-
+RUN cat /root/.ssh/id_rsa.pub
 CMD ["php-fpm"]

@@ -105,6 +105,7 @@ services:
               memory: 128M
     volumes:
       - api-data:/api
+      - ./Backend/src:/var/www/html
     ports:
       - "9000:9000"
     depends_on:
@@ -156,8 +157,11 @@ services:
     volumes:
       - ./Nginx/conf/nginx.conf:/etc/nginx/nginx.conf
       - ./Nginx/certs:/etc/nginx/certs
+      - ./Backend/src:/var/www/html
     networks:
       - symfony
+    links:
+      - backend
 
   # elasticsearch:
   #   image: ${GLOBAL_NAME}-elasticsearch
