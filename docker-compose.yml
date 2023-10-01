@@ -21,11 +21,11 @@ services:
               cpus: '0.30'
               memory: 128M
     volumes:
-      - mariadb-data:/config # Contains the db itself and all assorted settings.
+      - mariadb-data:/config 
     ports:
       - 3306:3306/tcp 
     networks:
-      - symfony
+      - nhlan
   
   gitea:
     image: gitea/gitea:1.20.3-rootless
@@ -53,12 +53,12 @@ services:
     depends_on:
       - mariadb
     networks:
-      - symfony
+      - nhlan
   
-  frontend:
+  app:
     build:
       context: .
-      dockerfile: Frontend/Dockerfile
+      dockerfile: App/Dockerfile
       args:
         NAME: ${APP_NAME}
         REPO_NAME: ${APP_REPO_NAME}
@@ -82,12 +82,12 @@ services:
       - postgres
       - gitea
     networks:
-      - symfony
+      - nhlan
 
-  backend:
+  api:
     build:
       context: .
-      dockerfile: Backend/Dockerfile
+      dockerfile: Api/Dockerfile
       args:
         NAME: ${API_NAME}
         REPO_NAME: ${API_REPO_NAME}
@@ -105,14 +105,16 @@ services:
               memory: 128M
     volumes:
       - api-data:/api
-      - ./Backend/src:/var/www/html
+      - ./Api/src:/api/
+    expose:
+      - "9000"
     ports:
       - "9000:9000"
     depends_on:
       - postgres
       - gitea
     networks:
-      - symfony
+      - nhlan
   
   postgres:
     image: postgres
@@ -134,7 +136,7 @@ services:
     ports:
       - "5432:5432"
     networks:
-      - symfony
+      - nhlan
   
   nginx:
     image: nginx:latest
@@ -157,11 +159,11 @@ services:
     volumes:
       - ./Nginx/conf/default.conf:/etc/nginx/conf.d/default.conf
       - ./Nginx/certs:/etc/nginx/certs
-      - ./Backend/src:/var/www/html
+      - ./Api/src:/api/
+      - app-data:/app/${APP_REPO_NAME}
+      - api-data:/api/${API_REPO_NAME}
     networks:
-      - symfony
-    links:
-      - backend
+      - nhlan
 
   # elasticsearch:
   #   image: ${GLOBAL_NAME}-elasticsearch
@@ -191,7 +193,7 @@ services:
   #     - ./Elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
   #     - ./Elasticsearch/var/elasticsearch-data:/usr/share/elasticsearch/data:delegated
   #   networks:
-  #     - symfony
+  #     - nhlan
 
   # kibana:
   #   image: ${GLOBAL_NAME}-kibana
@@ -216,29 +218,29 @@ services:
   #   depends_on:
   #     - elasticsearch
   #   networks:
-  #     - symfony
+  #     - nhlan
   
-  rabbitmq:
-    build:
-      context: .
-      dockerfile: Backend/Dockerfile
-    restart: unless-stopped
-    deploy:
-        resources:
-            limits:
-              cpus: '0.60'
-              memory: 512M
-            reservations:
-              cpus: '0.30'
-              memory: 128M
-    ports:
-      - "15672:15672"
-      - "5672:5672"
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: ${MQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${MQ_PASSWORD}
+  # rabbitmq:
+  #   build:
+  #     context: .
+  #     dockerfile: Backend/Dockerfile
+  #   restart: unless-stopped
+  #   deploy:
+  #       resources:
+  #           limits:
+  #             cpus: '0.60'
+  #             memory: 512M
+  #           reservations:
+  #             cpus: '0.30'
+  #             memory: 128M
+  #   ports:
+  #     - "15672:15672"
+  #     - "5672:5672"
+  #   volumes:
+  #     - rabbitmq_data:/var/lib/rabbitmq
+  #   environment:
+  #     RABBITMQ_DEFAULT_USER: ${MQ_USER}
+  #     RABBITMQ_DEFAULT_PASS: ${MQ_PASSWORD}
 volumes:
   postgres-data:
   git-repo-data:
@@ -253,5 +255,5 @@ volumes:
     driver: local
 
 networks:
-  symfony:
-    name: symfony
+  nhlan:
+    name: nhlan

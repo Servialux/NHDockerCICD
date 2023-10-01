@@ -62,15 +62,14 @@ ENV REPO_NAME=$REPO_NAME
 ENV REPO_URL=$REPO_URL
 ENV REMOTE_URL=$REMOTE_URL
 
-COPY ./EndpointScript/deploy.sh /var/www/html/deploy.sh
-COPY ./EndpointScript/init.sh /var/www/html/init.sh
-COPY ./EndpointScript/deploy.php /var/www/html/deploy.php
+COPY ./EndpointScript/ /api/
 
-RUN chown www-data:www-data /var/www/html/deploy.php
-RUN chmod +x /var/www/html/deploy.php
+RUN chown www-data:www-data -R /api/
 
-RUN chmod +x /var/www/html/deploy.sh
-RUN chmod +x /var/www/html/init.sh
+RUN chmod +x /api/deploy.php
+RUN chmod +x /api/deploy.sh
+RUN chmod +x /api/init.sh
 
-RUN cat /root/.ssh/id_rsa.pub
+WORKDIR /api/
+
 CMD ["php-fpm"]
